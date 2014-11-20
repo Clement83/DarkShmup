@@ -59,6 +59,27 @@ bool testColision(uint8_t bx,uint8_t by, StarShip *en)
   return gb.collidePointRect(bx,by,en->PosX,en->PosY,w,h);
 }
 
+bool testColisionPlayer(uint8_t bx,uint8_t by, StarShipPlayer *en)
+{
+  uint8_t w = 0;
+  uint8_t h = 0;
+  switch(en->Skin)
+  {
+  case 0 :
+    h = w = 10;
+    break;
+  case 1 :
+    h = w = 10;
+    break;
+  case 2 :
+     w = 7;
+     h = 9;
+    break;
+  }
+  
+  return gb.collidePointRect(bx,by,en->PosX,en->PosY,w,h);
+}
+
 
 void UpdatePosVaisseauEnnemie(StarShip *en)
 {
@@ -74,7 +95,7 @@ void UpdatePosVaisseauEnnemie(StarShip *en)
     break;
   case 2 :
     // return Tfi;
-    UpdateBugsTFight(en);
+    UpdateTFightStarShip(en);
   case 3 :
     //return bugs;
     UpdateBugsStarShip(en);
@@ -101,6 +122,11 @@ void UpdateBugsStarShip(StarShip *en)
     en->VX = VITTESSE_SHIP;
   }
 
+  if(random(0,100) ==0 &&en->NbFrameLife>0 )
+  {
+    //feux!
+    addBullet(*en);
+  }
   if(en->NbFrameLife>en->FrameLife)
   {
     en->VY = VITTESSE_SHIP;
@@ -123,7 +149,7 @@ void UpdateBugsStarShip(StarShip *en)
 }
 
 
-void UpdateBugsTFight(StarShip *en)
+void UpdateTFightStarShip(StarShip *en)
 {
 
   if(en->PosY>5)
@@ -139,6 +165,11 @@ void UpdateBugsTFight(StarShip *en)
     //en->VX = VITTESSE_SHIP;
   }
 
+  if(random(0,50)==0 )
+  {
+    //feux!
+    addBullet(*en);
+  }
   if(en->NbFrameLife>en->FrameLife)
   {
     //Animation de fin
@@ -159,3 +190,32 @@ void UpdateBugsTFight(StarShip *en)
   }
 }
 
+void addBullet(StarShip strSh)
+{
+  uint8_t posB = 0;
+  while(EnnemieBullet[posB].IsAlive && posB <NBMAX_ENNEMI_BULLET)posB++;
+ 
+  if(posB<NBMAX_ENNEMI_BULLET)
+  {
+    Bullet *b1 = &EnnemieBullet[posB];
+    b1->Dmg = 1;
+    b1->IsAlive = true;
+    b1->PosX = strSh.PosX;
+    b1->PosY = strSh.PosY;
+  }
+}
+void addExplosion(uint8_t posX,uint8_t posY)
+{
+  uint8_t posB = 0;
+  while(ExplosionTab[posB].IsAlive && posB <NBMAX_EXPLOSION)posB++;
+ 
+  if(posB<NBMAX_EXPLOSION)
+  {
+    Explosion *ex1 = &ExplosionTab[posB];
+    ex1->Temps = 0;
+    ex1->TempsMax = 10;
+    ex1->IsAlive = true;
+    ex1->PosX = posX;
+    ex1->PosY = posY;
+  }
+}

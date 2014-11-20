@@ -66,4 +66,19 @@ void PlayerFire()
   }
 }
 
+const byte* const GetSpritePlayer(uint8_t num)
+{
+	switch(num)
+	{
+		case 0 : 
+                return fm;
+		break;
+		case 1 : 
+                return rapide;
+		break;
+		case 2 : 
+                return small;
+		break;
+        }
+}
 

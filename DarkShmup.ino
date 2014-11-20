@@ -9,15 +9,12 @@ Gamebuino gb;
 #include "StarShip.h"
 #include "Bullet.h"
 #include "StarShipPlayer.h"
+#include "Explosion.h"
 #define VITTESSE_SHIP 1
-#define STARS 12
 #define MAX_SCROLL_PLAYER_X 2
 extern const byte font3x3[]; //a really tiny font
 extern const byte font3x5[]; //a small but efficient font (default)
 extern const byte font5x7[]; //a large, comfy font
-
-byte starspeed = 1;
-byte star[STARS*2];
 
 void drawStarShip(StarShip ship);
 const byte* const GetSpritePlayer(uint8_t num);
@@ -25,8 +22,11 @@ void tasseTabEnnemie(uint8_t index);
 const char* const GetResumePlayer(uint8_t num);
 void UpdatePosVaisseauEnnemie(StarShip *en);
 void UpdateBugsStarShip(StarShip *en);
-void UpdateBugsTFight(StarShip *en);
+void UpdateTFightStarShip(StarShip *en);
 bool testColision(uint8_t bx,uint8_t by, StarShip *en);
+bool testColisionPlayer(uint8_t bx,uint8_t by, StarShipPlayer *en);
+void addBullet(StarShip strSh);
+void addExplosion(uint8_t posX,uint8_t posY);
 
 const byte TitleScreen[] PROGMEM = {64,31,0x1,0xFF,0xFF,0xFE,0x0,0x78,0x0,0x10,0x1,0xFF,0xFF,0xFE,0x3C,0x3,0x80,0x70,0x3,0xFF,0xFF,0xC0,0x0,0x0,0x3,0xF0,0x7F,0xFF,0xFF,0x80,0x0,0x0,0xF,0xF0,0x7F,0xFF,0xFF,0x0,0x0,0x0,0x3F,0xF0,0x7F,0xFF,0xFE,0x0,0x3,0x0,0xF3,0xF0,0x1F,0xFF,0xFC,0x0,0x3,0x83,0xE3,0xF0,0xF,0xFF,0xF8,0x0,0x0,0xCF,0xCF,0xF0,0xF,0xFF,0xF8,0x0,0x0,0x5F,0x9F,0xF0,0xF,0xFF,0xF8,0x0,0x0,0xCF,0x3F,0xF0,0xF,0xFF,0xF8,0x0,0x3,0xE6,0x7F,0xF0,0x1F,0xFF,0xFC,0x0,0xF,0xE6,0x7F,0xF0,0x7F,0xFF,0x1E,0x0,0x3C,0xE0,0x73,0xF0,0x7F,0xFE,0xF,0xC0,0xFC,0xE0,0x73,0xF0,0x7F,0xFE,0xF,0xE3,0xFC,0x0,0x3,0xF0,0x7F,0xFE,0xF,0xEF,0xFC,0x0,0x3,0xF0,0x7F,0xFE,0xF,0xFF,0xFC,0x19,0x83,0xF0,0x7F,0xFF,0x1F,0xFF,0xFC,0x19,0x83,0xF0,0x1F,0xFF,0xFF,0xFF,0xFC,0xC0,0x33,0xF0,0xF,0xFF,0xFF,0xFF,0xFC,0xC0,0x33,0xF0,0xF,0xFF,0xF7,0xFF,0xFC,0xFF,0xF3,0xF0,0xF,0xFF,0xC7,0xFF,0xFC,0xFF,0xF3,0xF0,0xF,0xFF,0x7,0xFF,0xFC,0xFF,0xF3,0xF0,0x1F,0xFC,0x3,0xFF,0xFF,0xFF,0xFF,0xF0,0x7F,0xF0,0x1,0xFF,0xFF,0xFF,0xFF,0xF0,0x7F,0xC0,0x0,0xFF,0xFF,0xFF,0xFF,0xF0,0x7F,0x0,0x0,0x7F,0xFF,0xFF,0xFF,0xF0,0x2,0x0,0x0,0x3F,0xFF,0xFF,0xFF,0xF0,0x4,0x0,0x0,0x1,0xC7,0xFC,0x7F,0xF0,0xC,0x0,0x0,0x1,0xFF,0x1F,0xFF,0xF0,0x1F,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xF0,};
 
@@ -38,23 +38,28 @@ const byte rapide[] PROGMEM = {16,10,0xC,0x0,0xC,0x0,0x8C,0x40,0x92,0x40,0x8C,0x
 const char * txtSmall  = "Vaisseau petit et maniable. Peux esquiver facilement les tires ennemie";
 const byte small[] PROGMEM = {8,9,0x10,0x10,0x10,0x28,0xBA,0xFE,0x10,0x10,0x28,};
 
-const byte EtoileDeco[] PROGMEM = {8,3,0x40,0xA0,0x40,};
+
+const byte EtoileDeco[] PROGMEM = {8,3,0x40,0xE0,0x40,};
 const byte Munition[] PROGMEM = {8,6,0x40,0xA0,0xE0,0xA0,0xA0,0xE0,};
 const byte infinie[] PROGMEM = {8,3,0x50,0xA8,0x50,};
 
 
 #define NBMAX_ENNEMI  18
-#define NBMIN_ENNEMI_SCREEN  2
+#define NBMIN_ENNEMI_SCREEN  4
 
 StarShip Ennemies[NBMAX_ENNEMI];
 StarShipPlayer player;
 
-#define NBMAX_ENNEMI_BULLET  20
+#define NBMAX_ENNEMI_BULLET  15
 Bullet EnnemieBullet[NBMAX_ENNEMI_BULLET];
 
 
-#define NBMAX_PLAYER_BULLET  10
+#define NBMAX_PLAYER_BULLET  15
 Bullet PlayerBullet[NBMAX_PLAYER_BULLET];
+
+
+#define NBMAX_EXPLOSION  5
+Explosion ExplosionTab[NBMAX_EXPLOSION];
 
 //uint8_t posX = 21;
 //uint8_t posY = 21;
@@ -77,10 +82,6 @@ void setup()
   Score = 0;
   OldScore = 0;
   
-  for(byte j=0;j<STARS;j++){
-      star[j*2] += random(0,LCDHEIGHT); 
-      star[j*2+1] = random(0,LCDWIDTH); 
-  }
   (&player)->Life = 10;
   (&player)->Skin = 0;
   (&player)->PosY = 36;
@@ -102,7 +103,7 @@ void loop()
     {
       updateWorld();
       drawWorld();
-      updateStars();
+      //updateStars();
     }
   }
 }
@@ -169,37 +170,6 @@ const char* const GetResumePlayer(uint8_t num)
 		break;
         }
 }
-const byte* const GetSpritePlayer(uint8_t num)
-{
-	switch(num)
-	{
-		case 0 : 
-                return fm;
-		break;
-		case 1 : 
-                return rapide;
-		break;
-		case 2 : 
-                return small;
-		break;
-        }
-}
-
-
-void updateStars(){
-  for(byte j=0;j<STARS;j++){
-    star[j*2] += VITTESSE_SHIP*2; 
-    if(star[j*2] > LCDHEIGHT){
-      star[j*2] -= LCDHEIGHT ; 
-      star[j*2+1] = random(0,LCDWIDTH); 
-    }
-    
-    //gb.display.setColor(INVERT);
-      gb.display.drawBitmap(star[j*2+1], star[j*2], EtoileDeco);
-  }
-}
-
-
 
 void drawWorld()
 {
@@ -226,11 +196,38 @@ void drawWorld()
       isInDarkWorld = !isInDarkWorld;
     }
     
-    //gb.display.setColor(INVERT);
-    gb.display.drawBitmap((&player)->PosX, (&player)->PosY, GetSpritePlayer((&player)->Skin));
-    
+
+      gb.display.drawBitmap((&player)->PosX, (&player)->PosY, GetSpritePlayer((&player)->Skin));
+ 
     updateAndDrawHud();
+    UpdateAndDrawBulletEnnemies();
     UpdateAndDrawBullet();
+    drawExplosion();
+}
+
+void drawExplosion()
+{
+   for(uint8_t i=0;i<NBMAX_EXPLOSION;i++)
+  {
+      if(ExplosionTab[i].IsAlive)
+      {
+        if(ExplosionTab[i].Temps<ExplosionTab[i].TempsMax)
+        {
+          for(uint8_t x =0; x<10;x++)
+          {
+            uint8_t posx =  random(ExplosionTab[i].PosX - ExplosionTab[i].Temps,ExplosionTab[i].PosX + ExplosionTab[i].Temps);
+            uint8_t posy =  random(ExplosionTab[i].PosY - ExplosionTab[i].Temps,ExplosionTab[i].PosY + ExplosionTab[i].Temps);
+            
+              gb.display.drawPixel(posx,posy);
+          }
+          (&ExplosionTab[i])->Temps++;
+        }
+        else 
+        {
+          (&ExplosionTab[i])->IsAlive = false;
+        }
+      }
+  }
 }
 
 void updateAndDrawHud()
@@ -239,7 +236,11 @@ void updateAndDrawHud()
     //gestion du score
     if(OldScore<Score) OldScore+=7;
     if(OldScore>Score) OldScore=Score;
-    displayInt(OldScore,10,1,7);
+    displayInt(OldScore,10,45,7);
+    displayInt(player.Life,50,45,2);
+    displayInt(gb.getFreeRam(),1,1,6);
+    displayInt(gb.getCpuLoad(),70,1,2);
+    
   gb.display.setFont(font3x5);
 }
 
@@ -255,22 +256,53 @@ void UpdateAndDrawBullet()
       {
         b->IsAlive = false;
       }
-      
-      for(uint8_t cptEnnemi=0;cptEnnemi<nbEnemisAlive;cptEnnemi++)
+      else 
       {
-        //je ne peut toucher que ceux dans la meme dimention que moi
-        if(Ennemies[cptEnnemi].TypeDark == isInDarkWorld)
+        for(uint8_t cptEnnemi=0;cptEnnemi<nbEnemisAlive;cptEnnemi++)
         {
-          if(testColision(PlayerBullet[i].PosX,PlayerBullet[i].PosY, &Ennemies[cptEnnemi]))
+          //je ne peut toucher que ceux dans la meme dimention que moi
+          if(Ennemies[cptEnnemi].TypeDark == isInDarkWorld)
           {
-            (&Ennemies[cptEnnemi])->Life -= PlayerBullet[i].Dmg;
-            b->IsAlive = false;
-            Score += 91;//pour faire un score a la con qui monte vite
+            if(testColision(PlayerBullet[i].PosX,PlayerBullet[i].PosY, &Ennemies[cptEnnemi]))
+            {
+              (&Ennemies[cptEnnemi])->Life -= PlayerBullet[i].Dmg;
+              b->IsAlive = false;
+              Score += 91;//pour faire un score a la con qui monte vite
+            }
           }
         }
       }
       gb.display.setColor(INVERT);
       gb.display.drawPixel(PlayerBullet[i].PosX,PlayerBullet[i].PosY);
+      //gb.display.drawLine(x0, y0, x1, y1)
+    }
+  }
+}
+void UpdateAndDrawBulletEnnemies()
+{
+  for(uint8_t i=0;i<NBMAX_ENNEMI_BULLET;i++)
+  {
+    Bullet *b = &EnnemieBullet[i];
+    if(b->IsAlive)
+    {
+      b->PosY +=2;
+      if(b->PosY>50)
+      {
+        b->IsAlive = false;
+      }
+      else if(testColisionPlayer(EnnemieBullet[i].PosX,EnnemieBullet[i].PosY, &player))
+      {
+        addExplosion(b->PosX,b->PosY);
+        (&player)->Life -= EnnemieBullet[i].Dmg;
+        b->IsAlive = false;
+        
+        //Score += 91;//pour faire un score a la con qui monte vite
+      }
+      
+        
+      gb.display.setColor(INVERT);
+      gb.display.drawPixel(EnnemieBullet[i].PosX,EnnemieBullet[i].PosY);
+      gb.display.drawLine(EnnemieBullet[i].PosX,EnnemieBullet[i].PosY, EnnemieBullet[i].PosX,EnnemieBullet[i].PosY-3);
     }
   }
 }
@@ -310,6 +342,7 @@ void updateWorld()
     if(en->PosY > 60 || en->Life <= 0)
     {
       en->Life = 0;
+      addExplosion(en->PosX,en->PosY);
       tasseTabEnnemie(i);
       nbEnemisAlive--;
     }
